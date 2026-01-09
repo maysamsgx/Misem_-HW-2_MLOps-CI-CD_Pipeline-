@@ -26,9 +26,9 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install flake8 pytest
 
-    - name: Unit Test
+    - name: Unit Tests
       run: |
-        pytest tests/test_features.py tests/test_modeling.py tests/test_component.py
+        pytest tests/test_features.py tests/test_modeling.py
 
     - name: Lint
       run: |
@@ -36,6 +36,10 @@ jobs:
         flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Component Tests
+      run: |
+        pytest tests/test_component.py
         
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
