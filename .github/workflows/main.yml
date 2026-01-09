@@ -58,7 +58,7 @@ jobs:
       run: |
         # Run container in detached mode
         docker run -d -p 8000:8000 --name mlops-service mlops-pipeline:latest
-        # Wait a bit for service to come up
-        sleep 10
+        # Wait a bit for service to come up (Handled by script retries)
+        # sleep 10 removed for performance
         # Run smoke tests as a script (since it's not a standard pytest file)
         python tests/smoke_test.py
