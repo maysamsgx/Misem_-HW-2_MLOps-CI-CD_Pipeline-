@@ -17,6 +17,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.11"
+        cache: 'pip' # Enable pip caching for faster installs
         
     - name: Install dependencies
       run: |
@@ -35,15 +36,24 @@ jobs:
       run: |
         pytest tests/test_features.py tests/test_modeling.py tests/test_component.py
         
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
     - name: Build Docker Image
-      run: |
-        docker build -t mlops-pipeline .
-        
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: false
+        tags: mlops-pipeline:latest
+        load: true # Load image into Docker daemon so we can run it
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
     - name: Run Smoke Test
       run: |
         # Run container in detached mode
-        docker run -d -p 8000:8000 --name mlops-service mlops-pipeline
+        docker run -d -p 8000:8000 --name mlops-service mlops-pipeline:latest
         # Wait a bit for service to come up
         sleep 10
-        # Run smoke tests from outside the container against the exposed port
-        pytest tests/smoke_test.py
+        # Run smoke tests as a script (since it's not a standard pytest file)
+        python tests/smoke_test.py
