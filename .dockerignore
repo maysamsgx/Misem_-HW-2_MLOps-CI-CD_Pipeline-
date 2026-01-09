@@ -1,0 +1,10 @@
+.git/
+.venv/
+my_venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+mlruns/
+mlflow.db
+.gitlab-ci.yml
+*.bat

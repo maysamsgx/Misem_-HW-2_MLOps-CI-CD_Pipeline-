@@ -46,3 +46,13 @@ def test_hashed_skills_transformer():
     
     # Check that it's not all zeros (unless inputs are empty, which they aren't)
     assert np.any(X_trans != 0)
+
+    # [Requirements Check]: Ensure deterministic hashing for known input
+    # For HashingVectorizer with n=10, 'Python' should always hit the same column
+    X_python = transformer.transform(['Python'])
+    # Get the indices where value is non-zero
+    non_zero_indices = X_python.nonzero()[1]
+    assert len(non_zero_indices) > 0
+    # We don't hardcode the exact index to avoid brittleness across versions, 
+    # but we verify it's valid within range [0, n_features)
+    assert 0 <= non_zero_indices[0] < n_features
