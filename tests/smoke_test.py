@@ -19,7 +19,7 @@ def smoke_test(url="http://localhost:8000"):
         "experience_level": "Mid"
     }
     
-    max_retries = 5
+    max_retries = 10
     for i in range(max_retries):
         try:
             response = requests.post(f"{url}/predict", json=payload, timeout=5)
