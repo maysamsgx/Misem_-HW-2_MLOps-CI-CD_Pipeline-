@@ -6,6 +6,7 @@ import time
 # Usage: python tests/smoke_test.py [url]
 
 def smoke_test(url="http://localhost:8000"):
+    print("Initializing Smoke Test...")
     print(f"Running Smoke Test against {url}...")
     
     # Health/Root check (if exists) or just Try Connect

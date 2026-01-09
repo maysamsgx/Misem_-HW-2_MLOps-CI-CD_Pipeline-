@@ -9,6 +9,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
     - uses: actions/checkout@v3
@@ -49,7 +50,7 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Run Smoke Test
+    - name: Run Smoke Test (Script)
       run: |
         # Run container in detached mode
         docker run -d -p 8000:8000 --name mlops-service mlops-pipeline:latest
