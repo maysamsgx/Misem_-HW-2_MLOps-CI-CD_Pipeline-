@@ -1,0 +1,75 @@
+name: MLOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # ==========================================
+  # Part 1: The Commit Stage
+  # ==========================================
+  commit_stage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run Unit Tests (Feature Engineering)
+        run: |
+          pytest tests/test_features.py --verbose
+
+  # ==========================================
+  # Part 2: The Automated Acceptance Gate
+  # ==========================================
+  acceptance_stage:
+    needs: commit_stage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Component Tests
+        run: |
+          pytest tests/test_component.py --verbose
+
+      - name: Build Docker Image
+        run: |
+          docker build -t candidate-service:latest .
+
+      - name: Run Smoke Test
+        run: |
+          # Spin up container in detached mode
+          docker run -d -p 8000:8000 --name smoke_app candidate-service:latest
+          
+          # Wait for service to start
+          sleep 10
+          
+          # Run Smoke Test Script
+          python tests/smoke_test.py http://localhost:8000
+          
+          # Cleanup
+          docker stop smoke_app
