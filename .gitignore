@@ -2,7 +2,7 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-models/
+
 mlflow.db
 mlruns/
 *.log
