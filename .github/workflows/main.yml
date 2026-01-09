@@ -20,27 +20,27 @@ jobs:
         python-version: "3.11"
         cache: 'pip' # Enable pip caching for faster installs
         
-    - name: Install dependencies
+    - name: Build
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install flake8 pytest
-        
-    - name: Lint with flake8
+
+    - name: Unit Test
+      run: |
+        pytest tests/test_features.py tests/test_modeling.py tests/test_component.py
+
+    - name: Lint
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
         
-    - name: Run Unit Tests
-      run: |
-        pytest tests/test_features.py tests/test_modeling.py tests/test_component.py
-        
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
 
-    - name: Build Docker Image
+    - name: Package
       uses: docker/build-push-action@v4
       with:
         context: .
@@ -50,7 +50,7 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Run Smoke Test (Script)
+    - name: Smoke Test
       run: |
         # Run container in detached mode
         docker run -d -p 8000:8000 --name mlops-service mlops-pipeline:latest
