@@ -24,6 +24,11 @@ WORKDIR /app
 # Create a non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
+# Install runtime system dependencies (libgomp1 is needed for XGBoost/LightGBM)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy installed packages
 COPY --from=builder /root/.local /home/appuser/.local
 
