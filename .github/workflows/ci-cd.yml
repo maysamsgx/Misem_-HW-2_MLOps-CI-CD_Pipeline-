@@ -165,14 +165,15 @@ jobs:
           # Run Smoke Test (Bash script is more robust)
           chmod +x tests/smoke_test.sh
           
-          # Start container and capture ID (Robust Mode)
+          # Start container with explicit name
           echo "Starting container..."
-          CID=$(docker run -d -p 8000:8000 mlops-service:${{ github.sha }})
-          echo "Container ID: $CID"
+          docker run -d \
+            --name mlops-service \
+            -p 8000:8000 \
+            mlops-service:${{ github.sha }}
           
-          # Export for the script
-          export CONTAINER_NAME=$CID
-          echo "CONTAINER_NAME=$CID" >> $GITHUB_ENV
+          # Debug: Verify container is running
+          docker ps -a
           
           # Run the test
           ./tests/smoke_test.sh
@@ -181,5 +182,5 @@ jobs:
         if: failure()
         run: |
             echo "=== CONTAINER LOGS ==="
-            docker logs ${{ env.CONTAINER_NAME }} || echo "No logs found (container missing?)"
+            docker logs mlops-service || echo "No logs found (container missing?)"
             echo "=== END LOGS ==="
