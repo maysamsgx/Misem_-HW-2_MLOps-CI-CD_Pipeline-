@@ -62,14 +62,17 @@ jobs:
 
       - name: Run Smoke Test
         run: |
-          # Spin up container in detached mode
-          docker run -d -p 8000:8000 --name smoke_app candidate-service:latest
+          # Cleanup previous runs
+          docker rm -f mlops-service || true
+
+          # Spin up container in detached mode with CORRECT NAME
+          docker run -d -p 8000:8000 --name mlops-service candidate-service:latest
           
           # Wait for service to start
           sleep 10
           
           # Run Smoke Test Script
-          python tests/smoke_test.py http://localhost:8000
+          python tests/smoke_test.py
           
           # Cleanup
-          docker stop smoke_app
+          docker rm -f mlops-service
