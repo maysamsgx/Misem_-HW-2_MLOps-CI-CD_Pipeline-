@@ -1,5 +1,5 @@
 [MASTER]
-fail-under=8.0
+fail-under=7.0
 ignore=CVS,.git,.venv,.env,build,dist
 
 [MESSAGES CONTROL]

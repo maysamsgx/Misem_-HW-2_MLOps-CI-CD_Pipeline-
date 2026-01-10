@@ -40,9 +40,13 @@ def check_container_status(container_name="mlops-service"):
             check=False
         )
         status = result.stdout.strip()
-        print(f"[DIAGNOSTIC] Container Status: {status}")
+        if not status:
+            print(f"[DIAGNOSTIC] Inspect failed. Stderr: {result.stderr}")
+        else:
+            print(f"[DIAGNOSTIC] Container Status: {status}")
         return status == "running"
-    except Exception:  # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
+        print(f"[DIAGNOSTIC] Check failed with exception: {e}")
         return False
 
 
@@ -72,8 +76,8 @@ def wait_for_service(
             if response.status_code == 200:
                 print(f"✅ Service is UP (attempt {attempt})")
                 return True
-            else:
-                print(f"Attempt {attempt}: Status {response.status_code}")
+
+            print(f"Attempt {attempt}: Status {response.status_code}")
 
         except (requests.RequestException, ConnectionError) as e:
             # Short error format

@@ -158,9 +158,21 @@ jobs:
 
       - name: Run Smoke Test
         run: |
-          # Start container detached
+          # Cleanup potential remnants
+          docker rm -f mlops-service || true
+
+          # Start container detached (Robust Mode)
+          echo "Starting container..."
           docker run -d -p 8000:8000 --name mlops-service mlops-service:${{ github.sha }}
           
+          # Allow startup time
+          sleep 10
+          
+          # Debug: Check running containers
+          echo "=== RUNNING CONTAINERS ==="
+          docker ps -a
+          echo "=========================="
+
           # Run Python Smoke Test Script
           python tests/smoke_test.py
 
@@ -168,5 +180,5 @@ jobs:
         if: failure()
         run: |
             echo "=== CONTAINER LOGS ==="
-            docker logs mlops-service
+            docker logs mlops-service || echo "No logs found (container missing?)"
             echo "=== END LOGS ==="
