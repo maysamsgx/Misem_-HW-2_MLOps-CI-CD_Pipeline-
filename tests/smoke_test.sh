@@ -4,7 +4,7 @@ set -e
 # Smoke Test Script for CI/CD Pipeline
 # Verifies the service is up and responds to prediction requests.
 
-URL="http://localhost:8000"
+URL="http://127.0.0.1:8000"
 MAX_RETRIES=60
 SLEEP_TIME=2
 
@@ -14,6 +14,15 @@ echo "Starting Smoke Test..."
 echo "Waiting for service at $URL..."
 count=0
 while ! curl -s "$URL/health" > /dev/null; do
+  # Fail Fast: Check if container is still running
+  if ! docker ps | grep -q "mlops-service"; then
+    echo "CRITICAL FAILURE: Container crashed unexpectedly."
+    echo "=== CONTAINER LOGS START ==="
+    docker logs mlops-service
+    echo "=== CONTAINER LOGS END ==="
+    exit 1
+  fi
+
   echo "Service not ready yet. Retrying ($count/$MAX_RETRIES)..."
   sleep $SLEEP_TIME
   count=$((count+1))
