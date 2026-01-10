@@ -162,32 +162,24 @@ jobs:
           docker rm -f mlops-service || true
 
           # Start container detached (Robust Mode)
-          echo "Starting container..."
-          docker run -d -p 8000:8000 --name mlops-service mlops-service:${{ github.sha }}
-          
-          # Allow startup time and check health
-          echo "Waiting for container to initialize..."
-          sleep 10
-          
-          # Debug: Check if container is still alive
-          if ! docker ps | grep -q mlops-service; then
-             echo "❌ CRITICAL: Container died immediately!"
-             docker logs mlops-service
-             exit 1
-          fi
-          
-          # Debug: Check running containers
-          echo "=== RUNNING CONTAINERS ==="
-          docker ps -a
-          echo "=========================="
-
           # Run Smoke Test (Bash script is more robust)
           chmod +x tests/smoke_test.sh
+          
+          # Start container and capture ID (Robust Mode)
+          echo "Starting container..."
+          CID=$(docker run -d -p 8000:8000 mlops-service:${{ github.sha }})
+          echo "Container ID: $CID"
+          
+          # Export for the script
+          export CONTAINER_NAME=$CID
+          echo "CONTAINER_NAME=$CID" >> $GITHUB_ENV
+          
+          # Run the test
           ./tests/smoke_test.sh
 
       - name: Inspect Logs on Failure
         if: failure()
         run: |
             echo "=== CONTAINER LOGS ==="
-            docker logs mlops-service || echo "No logs found (container missing?)"
+            docker logs ${{ env.CONTAINER_NAME }} || echo "No logs found (container missing?)"
             echo "=== END LOGS ==="
