@@ -60,7 +60,7 @@ def train_model(df: pd.DataFrame):
     le = LabelEncoder()
     y_enc = le.fit_transform(y)
 
-    X_train, X_test, _, y_test = train_test_split(X, y_enc, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y_enc, test_size=0.2, random_state=42)
 
     # [Misem]: Stacking logic simplified regarding columns.
     # We kept the FeatureCross separate in 'features.py' logic,
