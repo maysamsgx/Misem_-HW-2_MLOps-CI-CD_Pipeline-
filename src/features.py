@@ -23,7 +23,7 @@ class SkillsEmbeddingTransformer(BaseEstimator, TransformerMixin):
              X = X.iloc[:, 0]
         unique_skills = set()
         for text in X:
-            if pd.isna(text): continue
+            if pd.isna(text) or text.strip() == '': continue
             skills = [s.strip() for s in text.split(',')]
             unique_skills.update(skills)
         
@@ -47,7 +47,7 @@ class SkillsEmbeddingTransformer(BaseEstimator, TransformerMixin):
         
         embeddings = []
         for text in X:
-            if pd.isna(text):
+            if pd.isna(text) or text.strip() == '':
                 embeddings.append(np.zeros(self.embedding_dim))
                 continue
             

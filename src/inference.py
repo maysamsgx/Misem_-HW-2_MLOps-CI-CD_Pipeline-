@@ -25,6 +25,12 @@ class PredictionOutput(BaseModel):
 model = None
 label_encoder = None
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint to verify service status."""
+    return {"status": "healthy", "model_loaded": model is not None}
+
+
 @app.on_event("startup")
 def load_startup_artifacts():
     global model, label_encoder

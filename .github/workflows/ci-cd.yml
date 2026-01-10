@@ -1,0 +1,175 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # 1️⃣ BUILD: Environment setup & Dependency Validation
+  # Target runtime: ~15s (cached)
+  build:
+    name: 1️⃣ Build & Setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip" # Caches dependencies for future jobs
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pytest pylint httpx
+        # This step validates that dependencies resolve and install correctly.
+        # The 'pip' cache will speed up subsequent jobs.
+
+  # 2️⃣ UNIT TEST: Fast, isolated verification
+  # Target runtime: ~20s
+  unit-test:
+    name: 2️⃣ Unit Tests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Run Unit Tests
+        run: pytest tests/test_features.py -v
+
+  # 3️⃣ LINT: Code Quality Enforcement
+  # Target runtime: ~10s
+  lint:
+    name: 3️⃣ Linting
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt flake8 pylint
+
+      - name: Run Flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Warnings allowed, but reported
+          flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run Pylint
+        # Strict Fail-under 8.0/10
+        run: pylint src/ tests/ --rcfile=.pylintrc
+
+  # 4️⃣ COMPONENT TEST: Integration Verification
+  # Target runtime: ~15s
+  component-test:
+    name: 4️⃣ Component Tests
+    needs: [unit-test, lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt pytest httpx
+
+      - name: Run Component Tests
+        # Verifies API <-> Feature Eng interaction
+        run: pytest tests/test_component.py -v
+
+  # 5️⃣ PACKAGE: Docker Build & Artifact Creation (Build Once Rule)
+  # Target runtime: ~45s
+  package:
+    name: 5️⃣ Package Docker
+    needs: component-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Export Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          # Deterministic Tagging with Git SHA
+          tags: mlops-service:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/mlops-service.tar
+          # Accelerate builds with GitHub Actions Cache
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlops-service-image
+          path: /tmp/mlops-service.tar
+          retention-days: 1
+
+  # 6️⃣ SMOKE TEST: Deployment Verification
+  # Target runtime: ~30s
+  smoke-test:
+    name: 6️⃣ Smoke Test
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mlops-service-image
+          path: /tmp
+
+      - name: Load Image
+        run: docker load --input /tmp/mlops-service.tar
+
+      - name: Run Smoke Test
+        run: |
+          chmod +x tests/smoke_test.sh
+          
+          echo "Starting Service Container..."
+          # Run container with specific name for the script
+          docker run -d -p 8000:8000 --name mlops-service mlops-service:${{ github.sha }}
+          
+          echo "Executing Smoke Test Script..."
+          # Retries are handled inside the script
+          ./tests/smoke_test.sh

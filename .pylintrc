@@ -1,0 +1,14 @@
+[MASTER]
+fail-under=8.0
+ignore=CVS,.git,.venv,.env,build,dist
+
+[MESSAGES CONTROL]
+disable=
+    C0111, # missing-docstring (flexible for homework)
+    C0103, # invalid-name (flexible for variable names like X, y)
+    W0621, # redefined-outer-name (common in pytest)
+    R0903, # too-few-public-methods
+
+[REPORTS]
+output-format=text
+files-output=no
