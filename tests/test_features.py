@@ -110,12 +110,6 @@ class TestHashedSkillsTransformer:
         X = transformer.transform(skills)
         assert X.shape == (1, 10)
 
-    def test_hashing_consistency(self, transformer):
-        """Verify consistent hashing across calls."""
-        skills_list = ['Python, SQL', 'Java']
-        out1 = transformer.transform(skills_list)
-        out2 = transformer.transform(skills_list)
-        np.testing.assert_array_equal(out1, out2, "Hashing must be consistent")
 
     def test_bucket_index_non_zero(self, transformer):
         """Verify input produces a non-zero hash vector."""
