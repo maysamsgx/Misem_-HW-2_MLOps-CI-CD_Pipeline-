@@ -5,10 +5,11 @@ FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-# Install system dependencies for building packages (if any)
-RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies to a temporary location
+# Install python dependencies
 COPY requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
@@ -19,10 +20,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Create a non-root user for security
+# Create a non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
-# Copy installed packages from builder
+# Copy installed packages
 COPY --from=builder /root/.local /home/appuser/.local
 
 # Ensure scripts are in PATH
@@ -32,7 +33,7 @@ ENV PATH=/home/appuser/.local/bin:$PATH
 COPY src/ src/
 COPY models/ models/
 
-# Change ownership to non-root user
+# Change ownership
 RUN chown -R appuser:appuser /app
 
 # Switch to non-root user
@@ -41,9 +42,9 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Health check (Docker native)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+# Health check (Python-based, no curl dependency)
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
 
 # Run FastAPI app
-CMD ["uvicorn", "src.inference:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "src.inference"]

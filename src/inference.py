@@ -1,18 +1,42 @@
-from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
-from pydantic import BaseModel
-import pandas as pd
-import joblib
-import mlflow.sklearn
 import os
+import joblib
+import pandas as pd
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+# Global variables
+model = None
+label_encoder = None
+
+
+def load_startup_artifacts():
+    global model, label_encoder
+    # [Anas]: Bootstrapping the artifacts.
+    model_path = os.getenv("MODEL_PATH", "models/production_pipeline.pkl")
+    le_path = os.getenv("LE_PATH", "models/label_encoder.pkl")
+
+    if os.path.exists(model_path):
+        model = joblib.load(model_path)
+        print(f"Loaded model from {model_path}")
+
+    if os.path.exists(le_path):
+        label_encoder = joblib.load(le_path)
+        print(f"Loaded label encoder from {le_path}")
+
+    if not model or not label_encoder:
+        print("Warning: Missing artifacts. Service will fail predictions.")
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # pylint: disable=redefined-outer-name, unused-argument
     # Load artifacts on startup
     load_startup_artifacts()
     yield
 
+
 app = FastAPI(title="Candidate Matching Service", version="1.0.0", lifespan=lifespan)
+
 
 # Input Schema
 class CandidateInput(BaseModel):
@@ -21,6 +45,7 @@ class CandidateInput(BaseModel):
     qualification: str
     experience_level: str
 
+
 # Output Schema
 class PredictionOutput(BaseModel):
     candidate_id: str
@@ -28,9 +53,6 @@ class PredictionOutput(BaseModel):
     top_match: str
     confidence: float
 
-# Global variables
-model = None
-label_encoder = None
 
 @app.get("/health")
 def health_check():
@@ -38,71 +60,41 @@ def health_check():
     return {"status": "healthy", "model_loaded": model is not None}
 
 
-def load_startup_artifacts():
-    global model, label_encoder
-    # [Anas]: Bootstrapping the artifacts.
-    model_path = os.getenv("MODEL_PATH", "models/production_pipeline.pkl")
-    le_path = os.getenv("LE_PATH", "models/label_encoder.pkl")
-    
-    if os.path.exists(model_path):
-        model = joblib.load(model_path)
-        print(f"Loaded model from {model_path}")
-    
-    if os.path.exists(le_path):
-        label_encoder = joblib.load(le_path)
-        print(f"Loaded label encoder from {le_path}")
-    
-    if not model or not label_encoder:
-        print("Warning: Missing artifacts at startup. Service will fail predictions.")
-
 @app.post("/predict", response_model=PredictionOutput)
 def predict(candidate: CandidateInput):
     if not model:
         raise HTTPException(status_code=503, detail="Model not loaded")
-    
+
     # Create DataFrame from input
     data = pd.DataFrame([candidate.model_dump()])
-    
+
     # Predict Probabilities
     try:
-        # [Misem]: This is the key "Reframing" pattern.
-        # We output the full probabilities so we can decide later if it's a "Maybe".
-        probs = model.predict_proba(data)[0] 
-        # [Misem]: Mapping probabilities using the discrete LabelEncoder classes.
-        # This ensures we always have the correct string labels ('Data Scientist', etc.)
+        # [Misem]: Reframing pattern.
+        probs = model.predict_proba(data)[0]
+        # [Misem]: Mapping probabilities.
         classes = label_encoder.classes_
         prob_dict = {str(c): float(p) for c, p in zip(classes, probs)}
-        
+
         # Determine top match initially
         top_match = max(prob_dict, key=prob_dict.get)
         confidence = prob_dict[top_match]
-        
+
         # [Misem]: Algorithmic Fallback Pattern.
-        # If the model is unsure (confidence < 0.4), we don't trust it. 
-        # We fall back to a simple keyword heuristic (Rule-based).
-        # This prevents the system from making wild guesses on unfamiliar data.
         if confidence < 0.4:
-            print(f"Confidence {confidence} below threshold. Triggering Fallback.")
-            # Simple Heuristic: Check if 'SQL' or 'Python' is in skills -> Likely Data role
+            print(f"Confidence {confidence} below threshold. Fallback.")
             s = candidate.skills.lower()
             if 'sql' in s or 'python' in s or 'data' in s:
-                fallback_role = "Data Scientist" # Simplified guess
+                fallback_role = "Data Scientist"
             else:
                 fallback_role = "Unknown"
-            
+
             top_match = fallback_role
-            confidence = 0.5 # Heuristic confidence
+            confidence = 0.5
             prob_dict = {fallback_role: 0.5, "Model_Low_Conf": 0.5}
 
-        # [Anas]: Batch Serving Note.
-        # We process single requests here (Stateless Serving).
-        # If we had to score 1 Million candidates nightly, we'd switch to BATCH SERVING (e.g. Apache Spark/Airflow).
-        # Batch is better for throughput, but this API is built for Latency (Real-time).
-        
         # [Mohammed Ali]: CME Data Logging.
-        # We save the features + prediction to a log. 
-        # The 'monitoring.py' service (or a scheduled job) picks this up to run Great Expectations drift checks.
-        with open("inference_log.csv", "a") as f:
+        with open("inference_log.csv", "a", encoding='utf-8') as f:
             f.write(f"{candidate.candidate_id},{top_match},{confidence}\n")
 
         return PredictionOutput(
@@ -114,10 +106,17 @@ def predict(candidate: CandidateInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/feedback")
 def feedback(candidate_id: str, actual_role: str):
     # [Misem]: Responsible AI pattern.
-    # Collecting the ground truth so we can check if we were actually right later.
-    with open("feedback_log.csv", "a") as f:
+    with open("feedback_log.csv", "a", encoding='utf-8') as f:
         f.write(f"{candidate_id},{actual_role}\n")
     return {"status": "received"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    # CRITICAL: Use 0.0.0.0 for Docker
+    PORT = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
