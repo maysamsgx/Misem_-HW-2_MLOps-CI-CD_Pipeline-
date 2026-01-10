@@ -32,8 +32,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed packages
 COPY --from=builder /root/.local /home/appuser/.local
 
-# Ensure scripts are in PATH
+# Ensure scripts are in PATH and PYTHONPATH includes /app
 ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PYTHONPATH=/app
 
 # Copy source code
 COPY src/ src/

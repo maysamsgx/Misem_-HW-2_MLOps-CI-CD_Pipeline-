@@ -181,8 +181,9 @@ jobs:
           docker ps -a
           echo "=========================="
 
-          # Run Python Smoke Test Script
-          python tests/smoke_test.py
+          # Run Smoke Test (Bash script is more robust)
+          chmod +x tests/smoke_test.sh
+          ./tests/smoke_test.sh
 
       - name: Inspect Logs on Failure
         if: failure()
