@@ -7,8 +7,7 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  # 1️⃣ BUILD: Environment setup & Dependency Validation
-  # Target runtime: ~15s (cached)
+  # 1️⃣ BUILD: Environment Setup & Dependency Validation
   build:
     name: 1️⃣ Build & Setup
     runs-on: ubuntu-latest
@@ -21,18 +20,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip" # Caches dependencies for future jobs
+          cache: "pip"
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install flake8 pytest pylint httpx
-        # This step validates that dependencies resolve and install correctly.
-        # The 'pip' cache will speed up subsequent jobs.
 
-  # 2️⃣ UNIT TEST: Fast, isolated verification
-  # Target runtime: ~20s
+  # 2️⃣ UNIT TEST: Fast, Isolated Verification (Commit Stage)
   unit-test:
     name: 2️⃣ Unit Tests
     needs: build
@@ -54,8 +50,7 @@ jobs:
       - name: Run Unit Tests
         run: pytest tests/test_features.py -v
 
-  # 3️⃣ LINT: Code Quality Enforcement
-  # Target runtime: ~10s
+  # 3️⃣ LINT: Code Quality (Commit Stage)
   lint:
     name: 3️⃣ Linting
     needs: build
@@ -75,18 +70,12 @@ jobs:
         run: pip install -r requirements.txt flake8 pylint
 
       - name: Run Flake8
-        run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 src/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Warnings allowed, but reported
-          flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        run: flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Run Pylint
-        # Strict Fail-under 8.0/10
         run: pylint src/ tests/ --rcfile=.pylintrc
 
-  # 4️⃣ COMPONENT TEST: Integration Verification
-  # Target runtime: ~15s
+  # 4️⃣ COMPONENT TEST: Integration Verification (Acceptance Stage)
   component-test:
     name: 4️⃣ Component Tests
     needs: [unit-test, lint]
@@ -106,11 +95,9 @@ jobs:
         run: pip install -r requirements.txt pytest httpx
 
       - name: Run Component Tests
-        # Verifies API <-> Feature Eng interaction
         run: pytest tests/test_component.py -v
 
-  # 5️⃣ PACKAGE: Docker Build & Artifact Creation (Build Once Rule)
-  # Target runtime: ~45s
+  # 5️⃣ PACKAGE: Docker Build via Buildx (Build Once Rule)
   package:
     name: 5️⃣ Package Docker
     needs: component-test
@@ -128,10 +115,8 @@ jobs:
         with:
           context: .
           push: false
-          # Deterministic Tagging with Git SHA
           tags: mlops-service:${{ github.sha }}
           outputs: type=docker,dest=/tmp/mlops-service.tar
-          # Accelerate builds with GitHub Actions Cache
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -142,8 +127,7 @@ jobs:
           path: /tmp/mlops-service.tar
           retention-days: 1
 
-  # 6️⃣ SMOKE TEST: Deployment Verification
-  # Target runtime: ~30s
+  # 6️⃣ SMOKE TEST: Deployment Verification (Acceptance Stage)
   smoke-test:
     name: 6️⃣ Smoke Test
     needs: package
@@ -165,11 +149,6 @@ jobs:
       - name: Run Smoke Test
         run: |
           chmod +x tests/smoke_test.sh
-          
-          echo "Starting Service Container..."
-          # Run container with specific name for the script
+          # Run detached with explicit name for fail-fast checks
           docker run -d -p 8000:8000 --name mlops-service mlops-service:${{ github.sha }}
-          
-          echo "Executing Smoke Test Script..."
-          # Retries are handled inside the script
           ./tests/smoke_test.sh
