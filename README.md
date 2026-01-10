@@ -182,12 +182,12 @@ The CI pipeline immediately detected the failure during the **Unit Test** stage 
 
 ### 📸 Evidence
 
+
 #### Evidence A (Success)
 A "Green" build where all gates passed.
 ![Green Build Screenshot](screenshots/green_build.png)
-*(Please replace this placeholder with your actual screenshot)*
 
 #### Evidence B (Failure/Stop the Line)
 The pipeline catching the intentional bug.
 ![Failed Build Screenshot](screenshots/failed_build.png)
-*(Please replace this placeholder with your actual screenshot)*
+
