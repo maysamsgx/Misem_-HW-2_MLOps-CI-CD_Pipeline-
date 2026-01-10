@@ -26,7 +26,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flake8 pytest pylint httpx
+          pip install flake8 pytest pylint httpx requests
 
   # 2️⃣ UNIT TEST: Fast, Isolated Verification (Commit Stage)
   unit-test:
@@ -73,7 +73,8 @@ jobs:
         run: flake8 src/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Run Pylint
-        run: pylint src/ tests/ --rcfile=.pylintrc
+        # Enforce fail-under 8.0
+        run: pylint src/ tests/ --rcfile=.pylintrc --fail-under=8.0
 
   # 4️⃣ COMPONENT TEST: Integration Verification (Acceptance Stage)
   component-test:
@@ -146,9 +147,26 @@ jobs:
       - name: Load Image
         run: docker load --input /tmp/mlops-service.tar
 
+      - name: Set up Python for Smoke Test
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Smoke Test Libs
+        run: pip install requests
+
       - name: Run Smoke Test
         run: |
-          chmod +x tests/smoke_test.sh
-          # Run detached with explicit name for fail-fast checks
+          # Start container detached
           docker run -d -p 8000:8000 --name mlops-service mlops-service:${{ github.sha }}
-          ./tests/smoke_test.sh
+          
+          # Run Python Smoke Test Script
+          python tests/smoke_test.py
+
+      - name: Inspect Logs on Failure
+        if: failure()
+        run: |
+            echo "=== CONTAINER LOGS ==="
+            docker logs mlops-service
+            echo "=== END LOGS ==="
