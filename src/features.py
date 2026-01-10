@@ -79,7 +79,7 @@ class HashedSkillsTransformer(BaseEstimator, TransformerMixin):
     def transform(self, X):
         # HashingVectorizer expects iterable of strings
         # We treat standard comma-sep strings as documents
-        return self.vectorizer.transform(X).toarray()
+        return self.vectorizer.transform(X)
 
 class FeatureCrossTransformer(BaseEstimator, TransformerMixin):
     """
