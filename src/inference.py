@@ -1,11 +1,18 @@
 from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
 import pandas as pd
 import joblib
 import mlflow.sklearn
 import os
 
-app = FastAPI(title="Candidate Matching Service", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load artifacts on startup
+    load_startup_artifacts()
+    yield
+
+app = FastAPI(title="Candidate Matching Service", version="1.0.0", lifespan=lifespan)
 
 # Input Schema
 class CandidateInput(BaseModel):
@@ -31,7 +38,6 @@ def health_check():
     return {"status": "healthy", "model_loaded": model is not None}
 
 
-@app.on_event("startup")
 def load_startup_artifacts():
     global model, label_encoder
     # [Anas]: Bootstrapping the artifacts.
@@ -55,7 +61,7 @@ def predict(candidate: CandidateInput):
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     # Create DataFrame from input
-    data = pd.DataFrame([candidate.dict()])
+    data = pd.DataFrame([candidate.model_dump()])
     
     # Predict Probabilities
     try:

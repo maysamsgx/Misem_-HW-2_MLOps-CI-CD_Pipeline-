@@ -60,10 +60,11 @@ def mock_pipeline_artifacts():
     # Patch joblib.load to return these
     with patch('src.inference.joblib.load') as mock_load:
         def side_effect(path):
+            if "label_encoder" in path:
+                return mock_le
+            # Default fallback for model/pipeline
             if "model" in path or "pipeline" in path:
                 return mock_pipeline
-            if "encoder" in path:
-                return mock_le
             return None
         mock_load.side_effect = side_effect
         
