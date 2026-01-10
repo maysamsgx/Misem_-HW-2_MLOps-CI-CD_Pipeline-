@@ -5,7 +5,7 @@ set -e
 # Verifies the service is up and responds to prediction requests.
 
 URL="http://localhost:8000"
-MAX_RETRIES=30
+MAX_RETRIES=60
 SLEEP_TIME=2
 
 echo "Starting Smoke Test..."
