@@ -19,6 +19,9 @@ while ! curl -s "$URL/health" > /dev/null; do
   count=$((count+1))
   if [ $count -ge $MAX_RETRIES ]; then
     echo "TIMEOUT: Service failed to start."
+    echo "=== CONTAINER LOGS START ==="
+    docker logs mlops-service
+    echo "=== CONTAINER LOGS END ==="
     exit 1
   fi
 done
