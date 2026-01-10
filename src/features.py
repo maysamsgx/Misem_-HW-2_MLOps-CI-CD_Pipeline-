@@ -61,7 +61,7 @@ class SkillsEmbeddingTransformer(BaseEstimator, TransformerMixin):
                 skill_vecs = self.embedding_matrix[skill_indices]
                 embeddings.append(np.mean(skill_vecs, axis=0))
                 
-        return np.vstack(embeddings)
+        return np.vstack(embeddings)) # Intentional Syntax Error for Stop the Line Demo
 
 class HashedSkillsTransformer(BaseEstimator, TransformerMixin):
     """
