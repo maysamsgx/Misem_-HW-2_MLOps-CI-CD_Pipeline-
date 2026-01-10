@@ -10,8 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc && \
     rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+# Install python dependencies
+COPY requirements-prod.txt .
+RUN pip install --user --no-cache-dir -r requirements-prod.txt
 
 # ==================================
 # Stage 2: Final Runtime
