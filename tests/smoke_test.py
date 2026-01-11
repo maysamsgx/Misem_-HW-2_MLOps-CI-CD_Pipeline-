@@ -161,6 +161,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    THIS_IS_AN INTENITIONAL_BUG  # Intentional Syntax Error for Evidence B
     sys.exit(main())
 
